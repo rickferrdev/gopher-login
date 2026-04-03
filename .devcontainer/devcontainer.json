@@ -1,5 +1,15 @@
 {
-  "name": "Go",
-  "image": "mcr.microsoft.com/devcontainers/go:2-1.25-trixie",
-  "features": {}
+    "name": "Go",
+    "image": "mcr.microsoft.com/devcontainers/go:2-1.25-trixie",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker": {
+            "moby": false
+        }
+    },
+    "runArgs": ["--network=gopher-network", "--env-file=.env"], 
+    "customizations": {
+        "vscode": {
+            "extensions": ["ms-azuretools.vscode-docker"]
+        }
+    }
 }
