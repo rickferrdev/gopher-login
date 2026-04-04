@@ -67,14 +67,15 @@ func (c *Consumer) FindByUsername(ctx context.Context, username string) (*ports.
 
 	consumer, err := c.repository.FindByUsername(ctx, username)
 	if err != nil {
-		if consumer != nil {
-			child.WarnContext(ctx, ports.MsgUserNotFound, slog.String("username", username))
-			return nil, ports.ErrConsumerNotFound
-		}
 		child.ErrorContext(ctx, ports.MsgSystemServiceFailed,
 			slog.String("username", username),
 			slog.Any("error", err),
 		)
+		return nil, ports.ErrConsumerNotFound
+	}
+
+	if consumer == nil {
+		child.WarnContext(ctx, ports.MsgUserNotFound, slog.String("username", username))
 		return nil, ports.ErrConsumerNotFound
 	}
 
