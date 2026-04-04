@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/rickferrdev/gopher-login/internal/api/core/domain"
 	"github.com/rickferrdev/gopher-login/internal/api/core/ports"
 	"github.com/stretchr/testify/suite"
@@ -69,6 +70,48 @@ func (suite *test) TestFindByUsername() {
 	}
 }
 
+func (suite *test) TestFindByID() {
+	table := []struct {
+		name         string
+		input        string
+		mockReturn   *domain.Consumer
+		mockErr      error
+		expectErr    error
+		expectOutput *ports.ConsumerPayload
+	}{
+		{
+			name:         "Success",
+			input:        uuid.NewString(),
+			mockReturn:   &domain.Consumer{Username: "rickferrdev"},
+			mockErr:      nil,
+			expectErr:    nil,
+			expectOutput: &ports.ConsumerPayload{Username: "rickferrdev"},
+		},
+		{
+			name:         "Failed",
+			input:        uuid.NewString(),
+			mockReturn:   nil,
+			mockErr:      nil,
+			expectErr:    ports.ErrConsumerNotFound,
+			expectOutput: nil,
+		},
+	}
+
+	for _, tt := range table {
+		suite.Run(tt.name, func() {
+			suite.repo.EXPECT().FindByID(gomock.Any(), tt.input).Times(1).Return(tt.mockReturn, tt.mockErr)
+
+			service := New(suite.repo, slog.New(slog.DiscardHandler))
+
+			obtained, err := service.FindByID(context.Background(), tt.input)
+			if tt.expectErr != nil {
+				suite.ErrorIs(err, tt.expectErr)
+			}
+
+			suite.Equal(obtained, tt.expectOutput)
+		})
+	}
+}
 func TestConsumerService(t *testing.T) {
 	suite.Run(t, new(test))
 }

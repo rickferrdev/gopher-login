@@ -39,16 +39,16 @@ func (c *Consumer) FindByID(ctx context.Context, id string) (*ports.ConsumerPayl
 
 	consumer, err := c.repository.FindByID(ctx, id)
 	if err != nil {
-		if consumer == nil {
-			child.WarnContext(ctx, ports.MsgUserNotFound, slog.String("id", id))
-			return nil, ports.ErrConsumerNotFound
-		}
-
 		child.ErrorContext(ctx, ports.MsgSystemServiceFailed,
 			slog.String("id", id),
 			slog.Any("error", err),
 		)
 		return nil, ports.ErrInternalServer
+	}
+
+	if consumer == nil {
+		child.WarnContext(ctx, ports.MsgUserNotFound, slog.String("id", id))
+		return nil, ports.ErrConsumerNotFound
 	}
 
 	child.DebugContext(ctx, ports.MsgUserFetchSuccess, slog.String("username", consumer.Username))
