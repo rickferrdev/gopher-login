@@ -13,4 +13,4 @@ var Module = fx.Module("database", fx.Provide(
 		fx.As(new(ServiceAuth.Repository)),
 		fx.As(new(ServiceConsumer.Repository)),
 	),
-), fx.Invoke(RepositoryConsumer.New))
+))
