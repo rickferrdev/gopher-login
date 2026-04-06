@@ -1,53 +1,107 @@
 package ports
 
-import "errors"
+type Message string
 
 var (
-	ErrConsumerNotFound      = errors.New("consumer not found")
-	ErrConsumerAlreadyExists = errors.New("consumer with given email or username already exists")
-	ErrInvalidCredentials    = errors.New("invalid credentials")
-	ErrConsumerInvalidID     = errors.New("invalid consumer ID format")
-	ErrContextTimeout        = errors.New("context timeout")
+	// Resource Related
+	MessageNotFound      Message = "resource not found"
+	MessageAlreadyExists Message = "resource already exists"
+	MessageInvalidID     Message = "provided identifier is invalid"
+	MessageDataConflict  Message = "data conflict occurred"
 
-	ErrInvalidToken   = errors.New("invalid token")
-	ErrInternalServer = errors.New("internal server error")
+	// Authentication & Security
+	MessageInvalidCredentials Message = "invalid credentials"
+	MessageUnauthorized       Message = "access denied"
+	MessageInvalidToken       Message = "invalid or malformed token"
+	MessageTokenExpired       Message = "session has expired"
+	MessageSecurityError      Message = "security processing failed"
+
+	// Request Validation
+	MessageBadRequest       Message = "invalid request parameters"
+	MessageInvalidInput     Message = "provided input is incorrect"
+	MessageValidationFailed Message = "validation constraints not met"
+
+	// System & Server
+	MessageInternalError      Message = "an unexpected error occurred"
+	MessageServiceUnavailable Message = "service is temporarily unavailable"
+	MessageTimeout            Message = "the operation timed out"
+
+	// Infrastructure & Persistence
+	MessageStorageError    Message = "failed to process storage operation"
+	MessageConnectionError Message = "could not establish connection to the service"
+	MessageOperationFailed Message = "the requested operation could not be completed"
 )
+
+type Code string
 
 const (
-	// Contexto: Request & Binding
-	MsgRequestBindingFailed = "request:binding_failed"
-	MsgRequestInvalidID     = "request:invalid_id_format"
+	CodeRequestBindingFailed Code = "request:binding_failed"
+	CodeRequestInvalidID     Code = "request:invalid_id_format"
 
-	// Contexto: Auth & JWT
-	MsgAuthInvalidCredentials = "auth:invalid_credentials"
-	MsgAuthUnauthorized       = "auth:unauthorized"
-	MsgAuthJwtInvalidFormat   = "auth:jwt_invalid_format"
-	MsgAuthJwtVerifyFailed    = "auth:jwt_verification_failed"
-	MsgAuthTokenValidated     = "auth:token_validated"
-	MsgAuthLoginSuccess       = "auth:login_success"
-	MsgAuthHashFailed         = "auth:password_hash_failed"
-	MsgAuthTokenGenFailed     = "auth:token_generation_failed"
+	CodeAuthInvalidCredentials Code = "auth:invalid_credentials"
+	CodeAuthUnauthorized       Code = "auth:unauthorized"
+	CodeAuthJwtInvalidFormat   Code = "auth:jwt_invalid_format"
+	CodeAuthJwtVerifyFailed    Code = "auth:jwt_verification_failed"
+	CodeAuthTokenValidated     Code = "auth:token_validated"
+	CodeAuthLoginSuccess       Code = "auth:login_success"
+	CodeAuthHashFailed         Code = "auth:password_hash_failed"
+	CodeAuthTokenGenFailed     Code = "auth:token_generation_failed"
 
-	// Contexto: User Domain
-	MsgUserRegistered    = "user:registration_success"
-	MsgUserAlreadyExists = "user:already_exists"
-	MsgUserNotFound      = "user:not_found"
-	MsgUserConflict      = "user:conflict"
-	MsgUserFetchSuccess  = "user:fetch_success"
+	CodeUserRegistered    Code = "user:registration_success"
+	CodeUserAlreadyExists Code = "user:already_exists"
+	CodeUserNotFound      Code = "user:not_found"
+	CodeUserConflict      Code = "user:conflict"
+	CodeUserFetchSuccess  Code = "user:fetch_success"
 
-	// Contexto: System & Infra
-	MsgSystemInternalError = "system:internal_server_error"
-	MsgSystemServiceFailed = "system:layer_service_failed"
-	MsgSystemBadRequest    = "system:bad_request"
+	CodeSystemInternalError Code = "system:internal_server_error"
+	CodeSystemServiceFailed Code = "system:layer_service_failed"
+	CodeSystemBadRequest    Code = "system:bad_request"
 
-	MsgDatabaseCreateFailed = "db:create_failed"
-	MsgDatabaseFetchFailed  = "db:fetch_failed"
-	MsgDatabaseSchemaFailed = "db:schema_init_failed"
-	MsgDatabasePingFailed   = "db:ping_failed"
-	MsgDatabaseConnFailed   = "db:connection_failed"
-	MsgDatabaseConnSuccess  = "db:connection_success"
+	CodeDatabaseCreateFailed Code = "db:create_failed"
+	CodeDatabaseFetchFailed  Code = "db:fetch_failed"
+	CodeDatabaseSchemaFailed Code = "db:schema_init_failed"
+	CodeDatabasePingFailed   Code = "db:ping_failed"
+	CodeDatabaseConnFailed   Code = "db:connection_failed"
+	CodeDatabaseConnSuccess  Code = "db:connection_success"
 
-	MsgServerShutdown = "server:shutting_down"
-	MsgServerFailed   = "server:startup_failed"
-	MsgServerStart    = "server:start_attempt"
+	CodeServerShutdown Code = "server:shutting_down"
+	CodeServerFailed   Code = "server:startup_failed"
+	CodeServerStart    Code = "server:start_attempt"
 )
+
+type GopherError struct {
+	Code    Code
+	Message Message
+	Err     error
+	Status  int
+}
+
+func (e *GopherError) Error() string {
+	if e.Err != nil {
+		return string(e.Code) + ": " + e.Err.Error()
+	}
+
+	return string(e.Code) + ": " + string(e.Message)
+}
+
+func (e *GopherError) Unwrap() error {
+	return e.Err
+}
+
+func (e *GopherError) Is(target error) bool {
+	t, ok := target.(*GopherError)
+	if !ok {
+		return false
+	}
+
+	return e.Code == t.Code
+}
+
+func NewError(code Code, message Message, status int, err error) *GopherError {
+	return &GopherError{
+		Code:    code,
+		Message: message,
+		Status:  status,
+		Err:     err,
+	}
+}
