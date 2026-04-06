@@ -6,7 +6,7 @@
             "moby": false
         }
     },
-    "runArgs": ["--network=gopher-network", "--env-file=.env"], 
+    "runArgs": ["--network=gopher-network", "--env-file=.env"],
     "customizations": {
         "vscode": {
             "extensions": ["ms-azuretools.vscode-docker"]

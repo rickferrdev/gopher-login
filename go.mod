@@ -3,7 +3,7 @@ module github.com/rickferrdev/gopher-login
 go 1.25.5
 
 require (
-	github.com/go-playground/assert/v2 v2.2.0
+	github.com/brianvoe/gofakeit/v7 v7.14.1
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/gofiber/fiber/v3 v3.1.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
