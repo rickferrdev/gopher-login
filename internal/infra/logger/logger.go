@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 )
 
 func New(env *env.Environment) (*slog.Logger, error) {
-	fmt.Printf("env: %v\n", env)
 	handler, err := logbull.NewSlogHandler(logbull.Config{
 		Host:      env.GOPHER_LOGBULL_HOST,
 		ProjectID: env.GOPHER_LOGBULL_PROJECT_ID,

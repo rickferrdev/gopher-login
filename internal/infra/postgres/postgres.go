@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/rickferrdev/gopher-login/internal/api/core/ports"
@@ -14,19 +12,28 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
+	"go.uber.org/fx"
 )
 
-func New(env *env.Environment, logger *slog.Logger) (*bun.DB, error) {
+type PostgresParams struct {
+	fx.In
+	Env    *env.Environment
+	Logger *slog.Logger
+}
+
+func New(params PostgresParams) (*bun.DB, error) {
+	logger := params.Logger.With(
+		slog.String("location", "postgres"),
+		slog.String("layer", "infra"),
+	)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	dsn := env.GOPHER_POSTGRES_URL
-	fmt.Printf("dsn: %v\n", dsn)
+	dsn := params.Env.GOPHER_POSTGRES_URL
 
-	logbullHost := os.Getenv("GOPHER_LOGBULL_HOST")
-	fmt.Printf("logbullHost: %v\n", logbullHost)
 	if dsn == "" {
-		logger.ErrorContext(ctx, ports.MsgDatabaseConnFailed, "error", "DSN is empty")
+		logger.ErrorContext(ctx, string(ports.CodeDatabaseConnFailed), "error", "DSN is empty")
 		return nil, errors.New("database DSN is required")
 	}
 
@@ -39,10 +46,10 @@ func New(env *env.Environment, logger *slog.Logger) (*bun.DB, error) {
 	bunDB.SetMaxIdleConns(25)
 
 	if err := bunDB.PingContext(ctx); err != nil {
-		logger.ErrorContext(ctx, ports.MsgDatabasePingFailed, "error", err)
+		logger.ErrorContext(ctx, string(ports.CodeDatabasePingFailed), "error", err)
 		return nil, err
 	}
 
-	logger.InfoContext(ctx, ports.MsgDatabaseConnSuccess)
+	logger.InfoContext(ctx, string(ports.CodeDatabaseConnSuccess))
 	return bunDB, nil
 }
