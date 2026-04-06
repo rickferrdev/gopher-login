@@ -53,6 +53,10 @@ func (service *Consumer) FindByID(ctx context.Context, id string) (*ports.Consum
 		return nil, err
 	}
 
+	if consumer == nil {
+		return nil, ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, fiber.StatusNotFound, nil)
+	}
+
 	return &ports.ConsumerPayload{
 		Username: consumer.Username,
 		Nickname: consumer.Nickname,

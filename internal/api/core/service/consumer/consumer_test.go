@@ -2,7 +2,6 @@ package consumer
 
 import (
 	"context"
-	"log/slog"
 	"testing"
 
 	"github.com/google/uuid"
@@ -28,37 +27,43 @@ func (suite *test) TearDownTest() {
 }
 
 func (suite *test) TestFindByUsername() {
+	params := ServiceParams{
+		Repository: suite.repo,
+	}
+
 	table := []struct {
-		name         string
-		input        string
-		mockReturn   *domain.Consumer
-		mockErr      error
+		name  string
+		input string
+
+		mockErr    error
+		mockOutput *domain.Consumer
+
 		expectErr    error
 		expectOutput *ports.ConsumerPayload
 	}{
 		{
 			name:         "Success",
 			input:        "rickferrdev",
-			mockReturn:   &domain.Consumer{Username: "rickferrdev"},
 			mockErr:      nil,
+			mockOutput:   &domain.Consumer{Username: "rickferrdev"},
 			expectErr:    nil,
 			expectOutput: &ports.ConsumerPayload{Username: "rickferrdev"},
 		},
 		{
 			name:         "Failed",
 			input:        "rickferrdev",
-			mockReturn:   nil,
-			mockErr:      nil,
-			expectErr:    ports.ErrConsumerNotFound,
+			mockErr:      ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, 404, nil),
+			mockOutput:   nil,
+			expectErr:    &ports.GopherError{Code: ports.CodeUserNotFound},
 			expectOutput: nil,
 		},
 	}
 
 	for _, tt := range table {
 		suite.Run(tt.name, func() {
-			suite.repo.EXPECT().FindByUsername(gomock.Any(), tt.input).Times(1).Return(tt.mockReturn, tt.mockErr)
+			suite.repo.EXPECT().FindByUsername(gomock.Any(), tt.input).Times(1).Return(tt.mockOutput, tt.mockErr)
 
-			service := New(suite.repo, slog.New(slog.DiscardHandler))
+			service := New(params)
 
 			obtained, err := service.FindByUsername(context.Background(), tt.input)
 			if tt.expectErr != nil {
@@ -71,18 +76,21 @@ func (suite *test) TestFindByUsername() {
 }
 
 func (suite *test) TestFindByID() {
+	params := ServiceParams{
+		Repository: suite.repo,
+	}
 	table := []struct {
 		name         string
 		input        string
-		mockReturn   *domain.Consumer
 		mockErr      error
+		mockOutput   *domain.Consumer
 		expectErr    error
 		expectOutput *ports.ConsumerPayload
 	}{
 		{
 			name:         "Success",
 			input:        uuid.NewString(),
-			mockReturn:   &domain.Consumer{Username: "rickferrdev"},
+			mockOutput:   &domain.Consumer{Username: "rickferrdev"},
 			mockErr:      nil,
 			expectErr:    nil,
 			expectOutput: &ports.ConsumerPayload{Username: "rickferrdev"},
@@ -90,18 +98,18 @@ func (suite *test) TestFindByID() {
 		{
 			name:         "Failed",
 			input:        uuid.NewString(),
-			mockReturn:   nil,
-			mockErr:      nil,
-			expectErr:    ports.ErrConsumerNotFound,
+			mockOutput:   nil,
+			mockErr:      ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, 404, nil),
+			expectErr:    &ports.GopherError{Code: ports.CodeUserNotFound},
 			expectOutput: nil,
 		},
 	}
 
 	for _, tt := range table {
 		suite.Run(tt.name, func() {
-			suite.repo.EXPECT().FindByID(gomock.Any(), tt.input).Times(1).Return(tt.mockReturn, tt.mockErr)
+			suite.repo.EXPECT().FindByID(gomock.Any(), tt.input).Times(1).Return(tt.mockOutput, tt.mockErr)
 
-			service := New(suite.repo, slog.New(slog.DiscardHandler))
+			service := New(params)
 
 			obtained, err := service.FindByID(context.Background(), tt.input)
 			if tt.expectErr != nil {
@@ -112,6 +120,7 @@ func (suite *test) TestFindByID() {
 		})
 	}
 }
+
 func TestConsumerService(t *testing.T) {
 	suite.Run(t, new(test))
 }
