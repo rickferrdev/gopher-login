@@ -2,17 +2,17 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rickferrdev/gopher-login/internal/api/core/ports"
+	"go.uber.org/fx"
 )
 
 type Handler struct {
 	service   Service
 	validator ports.Validator
-	child     *slog.Logger
+	logger    *slog.Logger
 }
 
 type Service interface {
@@ -20,19 +20,27 @@ type Service interface {
 	Login(ctx context.Context, input ports.LoginInput) (*ports.LoginOutput, error)
 }
 
-func New(group fiber.Router, service Service, validator ports.Validator, logger *slog.Logger) (*Handler, error) {
-	child := logger.With(
+type HandlerParams struct {
+	fx.In
+	Service   Service
+	Validator ports.Validator
+	Logger    *slog.Logger
+	Router    fiber.Router
+}
+
+func New(params HandlerParams) (*Handler, error) {
+	logger := params.Logger.With(
 		slog.String("location", "auth"),
 		slog.String("layer", "handler"),
 	)
 
 	handler := &Handler{
-		service:   service,
-		validator: validator,
-		child:     child,
+		service:   params.Service,
+		validator: params.Validator,
+		logger:    logger,
 	}
 
-	group = group.Group("/auth")
+	group := params.Router.Group("/auth")
 	group.Post("/login", handler.Login)
 	group.Post("/register", handler.Register)
 
@@ -51,20 +59,17 @@ type RequestRegisterDTO struct {
 	Password string `json:"password" validate:"required,min=6"`
 }
 
-func (h *Handler) Login(c fiber.Ctx) error {
-	group := h.child.With(
-		slog.String("function", "Login"),
-		slog.String("path", c.Path()),
-		slog.String("ip", c.IP()),
-	)
-
+func (handler *Handler) Login(c fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), ports.Timeout)
 	defer cancel()
 
 	var body RequestLoginDTO
 	if err := c.Bind().Body(&body); err != nil {
-		group.WarnContext(ctx, ports.MsgRequestBindingFailed, slog.String("error", err.Error()))
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return ports.NewError(ports.CodeRequestBindingFailed, ports.MessageBadRequest, fiber.StatusBadRequest, err)
+	}
+
+	if err := handler.validator.Validate(body); err != nil {
+		return ports.NewError(ports.CodeSystemBadRequest, ports.MessageValidationFailed, fiber.StatusBadRequest, err)
 	}
 
 	input := ports.LoginInput{
@@ -72,34 +77,25 @@ func (h *Handler) Login(c fiber.Ctx) error {
 		Password: body.Password,
 	}
 
-	output, err := h.service.Login(ctx, input)
+	output, err := handler.service.Login(ctx, input)
 	if err != nil {
-		if errors.Is(err, ports.ErrConsumerNotFound) || errors.Is(err, ports.ErrInvalidCredentials) {
-			group.WarnContext(ctx, ports.MsgAuthInvalidCredentials, slog.String("email", body.Email), slog.String("error", err.Error()))
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid email or password"})
-		}
-		group.ErrorContext(ctx, ports.MsgSystemInternalError, slog.String("error", err.Error()))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not log in user"})
+		return err
 	}
 
-	group.InfoContext(ctx, ports.MsgAuthLoginSuccess, slog.String("email", body.Email))
 	return c.Status(fiber.StatusOK).JSON(output)
 }
 
-func (h *Handler) Register(c fiber.Ctx) error {
-	group := h.child.With(
-		slog.String("function", "Register"),
-		slog.String("path", c.Path()),
-		slog.String("ip", c.IP()),
-	)
-
+func (handler *Handler) Register(c fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), ports.Timeout)
 	defer cancel()
 
 	var body RequestRegisterDTO
 	if err := c.Bind().Body(&body); err != nil {
-		group.WarnContext(ctx, ports.MsgRequestBindingFailed, slog.String("error", err.Error()))
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return ports.NewError(ports.CodeRequestBindingFailed, ports.MessageBadRequest, fiber.StatusBadRequest, err)
+	}
+
+	if err := handler.validator.Validate(body); err != nil {
+		return ports.NewError(ports.CodeSystemBadRequest, ports.MessageValidationFailed, fiber.StatusBadRequest, err)
 	}
 
 	input := ports.RegisterInput{
@@ -109,21 +105,10 @@ func (h *Handler) Register(c fiber.Ctx) error {
 		Password: body.Password,
 	}
 
-	output, err := h.service.Register(ctx, input)
+	output, err := handler.service.Register(ctx, input)
 	if err != nil {
-		if errors.Is(err, ports.ErrConsumerAlreadyExists) {
-			group.WarnContext(ctx, ports.MsgUserAlreadyExists, slog.String("email", body.Email))
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "consumer with given email or username already exists"})
-		}
-		if errors.Is(err, ports.ErrConsumerInvalidID) {
-			group.WarnContext(ctx, ports.MsgRequestInvalidID, slog.String("email", body.Email))
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid consumer ID format"})
-		}
-
-		group.ErrorContext(ctx, ports.MsgSystemServiceFailed, slog.String("email", body.Email), slog.String("error", err.Error()))
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not register user"})
+		return err
 	}
 
-	group.InfoContext(ctx, ports.MsgUserRegistered, slog.String("email", body.Email))
 	return c.Status(fiber.StatusCreated).JSON(output)
 }

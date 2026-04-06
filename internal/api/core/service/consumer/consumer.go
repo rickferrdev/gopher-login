@@ -2,15 +2,16 @@ package consumer
 
 import (
 	"context"
-	"log/slog"
+	"errors"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/rickferrdev/gopher-login/internal/api/core/domain"
 	"github.com/rickferrdev/gopher-login/internal/api/core/ports"
+	"go.uber.org/fx"
 )
 
 type Consumer struct {
 	repository Repository
-	logger     *slog.Logger
 }
 
 type Repository interface {
@@ -18,68 +19,69 @@ type Repository interface {
 	FindByID(ctx context.Context, id string) (*domain.Consumer, error)
 }
 
-func New(repository Repository, logger *slog.Logger) *Consumer {
-	child := logger.With(
-		slog.String("location", "consumer"),
-		slog.String("layer", "service"),
-	)
+type ServiceParams struct {
+	fx.In
+	Repository Repository
+}
 
+func New(params ServiceParams) *Consumer {
 	return &Consumer{
-		repository: repository,
-		logger:     child,
+		repository: params.Repository,
 	}
 }
 
-func (c *Consumer) FindByID(ctx context.Context, id string) (*ports.ConsumerPayload, error) {
-	child := c.logger.With(slog.String("function", "FindByID"))
+func (service *Consumer) FindByID(ctx context.Context, id string) (*ports.ConsumerPayload, error) {
 	if id == "" {
-		child.WarnContext(ctx, ports.MsgRequestInvalidID)
-		return nil, ports.ErrConsumerNotFound
-	}
-
-	consumer, err := c.repository.FindByID(ctx, id)
-	if err != nil {
-		child.ErrorContext(ctx, ports.MsgSystemServiceFailed,
-			slog.String("id", id),
-			slog.Any("error", err),
+		return nil, ports.NewError(
+			ports.CodeRequestInvalidID,
+			ports.MessageInvalidID,
+			fiber.StatusBadRequest,
+			nil,
 		)
-		return nil, ports.ErrInternalServer
 	}
 
-	if consumer == nil {
-		child.WarnContext(ctx, ports.MsgUserNotFound, slog.String("id", id))
-		return nil, ports.ErrConsumerNotFound
+	consumer, err := service.repository.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, &ports.GopherError{Code: ports.CodeUserNotFound}) {
+			return nil, ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, fiber.StatusNotFound, err)
+		}
+
+		if errors.Is(err, &ports.GopherError{Code: ports.CodeDatabaseFetchFailed}) {
+			return nil, ports.NewError(ports.CodeDatabaseFetchFailed, ports.MessageInternalError, fiber.StatusInternalServerError, err)
+		}
+
+		return nil, err
 	}
 
-	child.DebugContext(ctx, ports.MsgUserFetchSuccess, slog.String("username", consumer.Username))
 	return &ports.ConsumerPayload{
 		Username: consumer.Username,
 		Nickname: consumer.Nickname,
 	}, nil
 }
 
-func (c *Consumer) FindByUsername(ctx context.Context, username string) (*ports.ConsumerPayload, error) {
-	child := c.logger.With(slog.String("function", "FindByUsername"))
+func (service *Consumer) FindByUsername(ctx context.Context, username string) (*ports.ConsumerPayload, error) {
 	if username == "" {
-		child.WarnContext(ctx, ports.MsgRequestInvalidID)
-		return nil, ports.ErrConsumerNotFound
-	}
-
-	consumer, err := c.repository.FindByUsername(ctx, username)
-	if err != nil {
-		child.ErrorContext(ctx, ports.MsgSystemServiceFailed,
-			slog.String("username", username),
-			slog.Any("error", err),
+		return nil, ports.NewError(
+			ports.CodeSystemBadRequest,
+			ports.MessageBadRequest,
+			fiber.StatusBadRequest,
+			nil,
 		)
-		return nil, ports.ErrConsumerNotFound
 	}
 
-	if consumer == nil {
-		child.WarnContext(ctx, ports.MsgUserNotFound, slog.String("username", username))
-		return nil, ports.ErrConsumerNotFound
+	consumer, err := service.repository.FindByUsername(ctx, username)
+	if err != nil {
+		if errors.Is(err, &ports.GopherError{Code: ports.CodeUserNotFound}) {
+			return nil, ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, fiber.StatusNotFound, err)
+		}
+
+		if errors.Is(err, &ports.GopherError{Code: ports.CodeDatabaseFetchFailed}) {
+			return nil, ports.NewError(ports.CodeDatabaseFetchFailed, ports.MessageInternalError, fiber.StatusInternalServerError, err)
+		}
+
+		return nil, err
 	}
 
-	child.DebugContext(ctx, ports.MsgUserFetchSuccess, slog.String("username", consumer.Username))
 	return &ports.ConsumerPayload{
 		Username: consumer.Username,
 		Nickname: consumer.Nickname,

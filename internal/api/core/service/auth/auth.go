@@ -3,18 +3,18 @@ package auth
 import (
 	"context"
 	"errors"
-	"log/slog"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/rickferrdev/go-hasher"
 	"github.com/rickferrdev/gopher-login/internal/api/core/domain"
 	"github.com/rickferrdev/gopher-login/internal/api/core/ports"
+	"go.uber.org/fx"
 )
 
 type Service struct {
 	repository Repository
 	totoken    ports.Totoken
 	hasher     hasher.Hasher
-	logger     *slog.Logger
 }
 
 type Repository interface {
@@ -22,89 +22,66 @@ type Repository interface {
 	Create(ctx context.Context, consumer domain.Consumer) (string, error)
 }
 
-func New(repository Repository, totoken ports.Totoken, logger *slog.Logger) *Service {
-	child := logger.With(
-		slog.String("location", "consumer"),
-		slog.String("layer", "service"),
-	)
+type ServiceParams struct {
+	fx.In
+	Repository Repository
+	Totoken    ports.Totoken
+}
 
+func New(params ServiceParams) *Service {
 	return &Service{
-		repository: repository,
-		totoken:    totoken,
+		repository: params.Repository,
+		totoken:    params.Totoken,
 		hasher:     hasher.New(hasher.DefaultCost),
-		logger:     child,
 	}
 }
 
-func (s *Service) Register(ctx context.Context, input ports.RegisterInput) (*ports.RegisterOutput, error) {
-	child := s.logger.With(slog.String("function", "Register"))
-	hash, err := s.hasher.Generate([]byte(input.Password))
+func (service *Service) Register(ctx context.Context, input ports.RegisterInput) (*ports.RegisterOutput, error) {
+	hash, err := service.hasher.Generate([]byte(input.Password))
 	if err != nil {
-		child.ErrorContext(ctx, ports.MsgAuthHashFailed,
-			slog.String("email", input.Email),
-			slog.Any("error", err),
-		)
-		return nil, ports.ErrInternalServer
+		return nil, ports.NewError(ports.CodeAuthHashFailed, ports.MessageSecurityError, fiber.StatusInternalServerError, err)
 	}
 
-	id, err := s.repository.Create(ctx, domain.Consumer{
+	id, err := service.repository.Create(ctx, domain.Consumer{
 		Username: input.Username,
 		Nickname: input.Nickname,
 		Email:    input.Email,
 		Password: string(hash),
 	})
 	if err != nil {
-		if errors.Is(err, ports.ErrConsumerAlreadyExists) {
-			child.WarnContext(ctx, ports.MsgUserAlreadyExists, slog.String("email", input.Email))
-			return nil, ports.ErrConsumerAlreadyExists
+		if errors.Is(err, &ports.GopherError{Code: ports.CodeUserAlreadyExists}) {
+			return nil, ports.NewError(ports.CodeUserAlreadyExists, ports.MessageAlreadyExists, fiber.StatusConflict, err)
 		}
 
-		child.ErrorContext(ctx, ports.MsgSystemServiceFailed,
-			slog.String("email", input.Email),
-			slog.Any("error", err),
-		)
-		return nil, ports.ErrInternalServer
+		if errors.Is(err, &ports.GopherError{Code: ports.CodeDatabaseCreateFailed}) {
+			return nil, ports.NewError(ports.CodeDatabaseCreateFailed, ports.MessageStorageError, fiber.StatusInternalServerError, err)
+		}
+
+		return nil, err
 	}
 
-	child.InfoContext(ctx, ports.MsgUserRegistered,
-		slog.String("email", input.Email),
-		slog.String("id", id),
-	)
 	return &ports.RegisterOutput{ID: id}, nil
 }
 
-func (s *Service) Login(ctx context.Context, input ports.LoginInput) (*ports.LoginOutput, error) {
-	child := s.logger.With(slog.String("function", "Login"))
-	consumer, err := s.repository.FindByEmail(ctx, input.Email)
+func (service *Service) Login(ctx context.Context, input ports.LoginInput) (*ports.LoginOutput, error) {
+	consumer, err := service.repository.FindByEmail(ctx, input.Email)
 	if err != nil {
-		if errors.Is(err, ports.ErrConsumerNotFound) {
-			child.WarnContext(ctx, ports.MsgUserNotFound, slog.String("email", input.Email))
-			return nil, ports.ErrConsumerNotFound
+		if errors.Is(err, &ports.GopherError{Code: ports.CodeUserNotFound}) {
+			return nil, ports.NewError(ports.CodeAuthInvalidCredentials, ports.MessageInvalidCredentials, fiber.StatusUnauthorized, err)
 		}
-
-		child.ErrorContext(ctx, ports.MsgSystemServiceFailed,
-			slog.String("email", input.Email),
-			slog.Any("error", err),
-		)
-		return nil, ports.ErrInternalServer
+		return nil, err
 	}
 
-	err = s.hasher.Compare([]byte(consumer.Password), []byte(input.Password))
+	err = service.hasher.Compare([]byte(consumer.Password), []byte(input.Password))
 	if err != nil {
-		child.WarnContext(ctx, ports.MsgAuthInvalidCredentials, slog.String("email", input.Email))
-		return nil, ports.ErrInvalidCredentials
+		return nil, ports.NewError(ports.CodeAuthInvalidCredentials, ports.MessageInvalidCredentials, fiber.StatusUnauthorized, err)
 	}
 
-	token, err := s.totoken.GenerateToken(consumer.ID)
+	token, err := service.totoken.GenerateToken(consumer.ID)
 	if err != nil {
-		child.ErrorContext(ctx, ports.MsgAuthTokenGenFailed,
-			slog.String("email", input.Email),
-			slog.Any("error", err),
-		)
-		return nil, ports.ErrInternalServer
+		return nil, ports.NewError(ports.CodeAuthTokenGenFailed, ports.MessageInternalError, fiber.StatusInternalServerError, err)
 	}
 
-	child.InfoContext(ctx, ports.MsgAuthLoginSuccess, slog.String("email", input.Email))
 	return &ports.LoginOutput{
 		Token: token,
 	}, nil

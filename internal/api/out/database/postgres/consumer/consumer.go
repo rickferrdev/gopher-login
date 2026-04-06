@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +11,7 @@ import (
 	"github.com/rickferrdev/gopher-login/internal/api/core/ports"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/driver/pgdriver"
+	"go.uber.org/fx"
 )
 
 type Schema struct {
@@ -35,8 +35,7 @@ func NewSchema(consumer domain.Consumer) (*Schema, error) {
 	if consumer.ID != "" {
 		parsedID, err := uuid.Parse(consumer.ID)
 		if err != nil {
-			slog.Error(ports.MsgRequestInvalidID, "id", consumer.ID, "error", err)
-			return nil, ports.ErrConsumerInvalidID
+			return nil, ports.NewError(ports.CodeRequestInvalidID, ports.MessageInvalidID, 400, err)
 		}
 		schema.ID = parsedID
 	} else {
@@ -60,21 +59,26 @@ type Repository struct {
 	database *bun.DB
 }
 
-func New(bunDB *bun.DB) (*Repository, error) {
+type RepositoryParams struct {
+	fx.In
+	BunDB *bun.DB
+}
+
+func New(params RepositoryParams) (*Repository, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := bunDB.NewCreateTable().
+
+	_, err := params.BunDB.NewCreateTable().
 		Model((*Schema)(nil)).
 		IfNotExists().
 		Exec(ctx)
 
 	if err != nil {
-		slog.Error(ports.MsgDatabaseSchemaFailed, "error", err)
-		return nil, err
+		return nil, ports.NewError(ports.CodeDatabaseSchemaFailed, ports.MessageStorageError, 500, err)
 	}
 
 	return &Repository{
-		database: bunDB,
+		database: params.BunDB,
 	}, nil
 }
 
@@ -82,10 +86,9 @@ func (r *Repository) FindByEmail(ctx context.Context, email string) (*domain.Con
 	var schema Schema
 	if err := r.database.NewSelect().Model(&schema).Where("email = ?", email).Scan(ctx); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ports.ErrConsumerNotFound
+			return nil, ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, 404, err)
 		}
-		slog.ErrorContext(ctx, ports.MsgDatabaseFetchFailed, "email", email, "error", err)
-		return nil, ports.ErrInternalServer
+		return nil, ports.NewError(ports.CodeDatabaseFetchFailed, ports.MessageInternalError, 500, err)
 	}
 	return schema.ToDomain(), nil
 }
@@ -94,10 +97,9 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*domain.Consumer,
 	var schema Schema
 	if err := r.database.NewSelect().Model(&schema).Where("id = ?", id).Scan(ctx); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ports.ErrConsumerNotFound
+			return nil, ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, 404, err)
 		}
-		slog.ErrorContext(ctx, ports.MsgDatabaseFetchFailed, "id", id, "error", err)
-		return nil, ports.ErrInternalServer
+		return nil, ports.NewError(ports.CodeDatabaseFetchFailed, ports.MessageInternalError, 500, err)
 	}
 	return schema.ToDomain(), nil
 }
@@ -111,12 +113,9 @@ func (r *Repository) Create(ctx context.Context, consumer domain.Consumer) (stri
 	var id string
 	if _, err := r.database.NewInsert().Model(schema).Returning("id").Exec(ctx, &id); err != nil {
 		if pgErr, ok := err.(pgdriver.Error); ok && pgErr.Field('C') == "23505" {
-			slog.WarnContext(ctx, ports.MsgUserAlreadyExists, "id", schema.ID)
-			return "", ports.ErrConsumerAlreadyExists
+			return "", ports.NewError(ports.CodeUserAlreadyExists, ports.MessageAlreadyExists, 409, err)
 		}
-
-		slog.ErrorContext(ctx, ports.MsgDatabaseCreateFailed, "id", schema.ID, "error", err)
-		return "", ports.ErrInternalServer
+		return "", ports.NewError(ports.CodeDatabaseCreateFailed, ports.MessageStorageError, 500, err)
 	}
 
 	return id, nil
@@ -126,11 +125,9 @@ func (r *Repository) FindByUsername(ctx context.Context, username string) (*doma
 	var schema Schema
 	if err := r.database.NewSelect().Model(&schema).Where("username = ?", username).Scan(ctx); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ports.ErrConsumerNotFound
+			return nil, ports.NewError(ports.CodeUserNotFound, ports.MessageNotFound, 404, err)
 		}
-		slog.ErrorContext(ctx, ports.MsgDatabaseFetchFailed, "username", username, "error", err)
-		return nil, ports.ErrInternalServer
+		return nil, ports.NewError(ports.CodeDatabaseFetchFailed, ports.MessageInternalError, 500, err)
 	}
-
 	return schema.ToDomain(), nil
 }
