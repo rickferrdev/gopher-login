@@ -8,7 +8,10 @@ import (
 var Provide = fx.Provide(New)
 
 type Env struct {
-	ServerPort string `env:"SERVER_PORT" default:"8080"`
+	ServerPort   string `env:"SERVER_PORT" default:"8080"`
+	DatabaseURI  string `env:"DATABASE_URI" required:"true"`
+	JwtSecret    string `env:"JWT_SECRET" required:"true"`
+	JwtExpiresIn string `env:"JWT_EXPIRES_IN" default:"24h"`
 }
 
 func New() (*Env, error) {

@@ -5,11 +5,11 @@
 package services
 
 import (
-	"github.com/rickferrdev/go-ports-and-adapters-template/internal/core/services/user"
+	"github.com/rickferrdev/gopher-login/internal/core/services/user/auth"
 	"go.uber.org/fx"
 )
 
 var Module = fx.Module(
 	"services",
-	user.Provide,
+	auth.Provide,
 )
