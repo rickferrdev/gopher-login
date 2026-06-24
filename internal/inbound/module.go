@@ -1,7 +1,7 @@
 package inbound
 
 import (
-	"github.com/rickferrdev/go-ports-and-adapters-template/internal/inbound/http/rest"
+	"github.com/rickferrdev/gopher-login/internal/inbound/http/rest"
 	"go.uber.org/fx"
 )
 

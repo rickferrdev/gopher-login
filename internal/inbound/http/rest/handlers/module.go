@@ -5,11 +5,11 @@
 package handlers
 
 import (
-	"github.com/rickferrdev/go-ports-and-adapters-template/internal/inbound/http/rest/handlers/user"
+	"github.com/rickferrdev/gopher-login/internal/inbound/http/rest/handlers/auth"
 	"go.uber.org/fx"
 )
 
 var Module = fx.Module(
 	"handlers",
-	user.Invoke,
+	auth.Invoke,
 )

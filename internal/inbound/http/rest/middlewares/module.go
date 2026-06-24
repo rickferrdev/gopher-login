@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"github.com/rickferrdev/go-ports-and-adapters-template/internal/inbound/http/rest/middlewares/guard"
+	"github.com/rickferrdev/gopher-login/internal/inbound/http/rest/middlewares/guard"
 	"go.uber.org/fx"
 )
 
