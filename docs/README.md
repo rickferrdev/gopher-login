@@ -1,5 +1,7 @@
-````md
 # Gopher Login
+![Go](https://img.shields.io/badge/Go-1.26-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Status](https://img.shields.io/badge/status-study_project-yellow)
 
 Gopher Login is a simple authentication API built with Go, designed mainly for study purposes and as a reusable foundation for other backend projects.
 

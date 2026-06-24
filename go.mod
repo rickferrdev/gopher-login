@@ -6,7 +6,9 @@ require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/gofiber/fiber/v3 v3.3.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/golang/mock v1.6.0
 	github.com/rickferrdev/dotenv v1.3.0
+	github.com/stretchr/testify v1.11.1
 	go.mongodb.org/mongo-driver/v2 v2.7.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.52.0
@@ -14,6 +16,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.2.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -25,6 +28,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.71.0 // indirect
@@ -39,4 +43,5 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -1,6 +1,9 @@
 package outbound
 
-import "go.uber.org/fx"
+import (
+	"github.com/rickferrdev/gopher-login/internal/outbound/databases"
+	"go.uber.org/fx"
+)
 
 // Module groups outbound adapters.
 //
@@ -11,4 +14,5 @@ import "go.uber.org/fx"
 // Add your own adapters here when your application needs them.
 var Module = fx.Module(
 	"outbound",
+	databases.Module,
 )
