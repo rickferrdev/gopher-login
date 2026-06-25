@@ -1,8 +1,8 @@
 package rest
 
 import (
-	"github.com/rickferrdev/go-ports-and-adapters-template/internal/inbound/http/rest/handlers"
-	"github.com/rickferrdev/go-ports-and-adapters-template/internal/inbound/http/rest/middlewares"
+	"github.com/rickferrdev/gopher-login/internal/inbound/http/rest/handlers"
+	"github.com/rickferrdev/gopher-login/internal/inbound/http/rest/middlewares"
 	"go.uber.org/fx"
 )
 
