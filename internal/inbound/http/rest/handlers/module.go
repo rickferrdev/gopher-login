@@ -1,7 +1,3 @@
-// Module groups inbound adapters.
-//
-// Inbound adapters are entry points into the application,
-// such as HTTP routes, CLI commands, workers, webhooks, or gRPC handlers.
 package handlers
 
 import (

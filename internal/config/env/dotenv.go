@@ -15,10 +15,7 @@ type Env struct {
 }
 
 func New() (*Env, error) {
-	// In this usage model, github.com/rickferrdev/dotenv
-	// is recommended, but for your specific use case, consider the package that best suits your needs.
 	var env Env
-	// or use "import "github.com/rickferrdev/dotenv/auto""
 	dotenv.Collect()
 
 	if err := dotenv.Unmarshal(&env); err != nil {

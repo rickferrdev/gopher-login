@@ -21,7 +21,6 @@ var Provide = fx.Provide(New)
 var Invoke = fx.Invoke(Start)
 
 func New(validator platform.StructValidator) (*fiber.App, fiber.Router, error) {
-	// Use your favorite HTTP framework; in my case, I'll write it using Fiber v3.
 	app := fiber.New(fiber.Config{
 		StructValidator: validator,
 		ErrorHandler:    ErrorHandler,

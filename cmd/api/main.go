@@ -1,10 +1,3 @@
-// Modules are grouped by responsibility.
-//
-// config: application configuration and environment variables.
-// infra: framework-level infrastructure, such as HTTP server and logger.
-// outbound: adapters that communicate with external systems.
-// services: application use cases / business services.
-// inbound: adapters that receive input, such as HTTP handlers.
 package main
 
 import (

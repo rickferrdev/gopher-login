@@ -1,7 +1,3 @@
-// Module provides application services.
-//
-// Services usually contain use case orchestration and depend on ports,
-// not directly on frameworks, databases, queues, or external clients
 package services
 
 import (
